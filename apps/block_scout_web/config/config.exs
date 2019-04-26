@@ -9,13 +9,16 @@ use Mix.Config
 config :block_scout_web,
   namespace: BlockScoutWeb,
   ecto_repos: [Explorer.Repo],
-  version: System.get_env("BLOCKSCOUT_VERSION")
+  version: System.get_env("BLOCKSCOUT_VERSION"),
+  release_link: System.get_env("RELEASE_LINK"),
+  decompiled_smart_contract_token: System.get_env("DECOMPILED_SMART_CONTRACT_TOKEN")
 
 config :block_scout_web, BlockScoutWeb.Chain,
   network: System.get_env("NETWORK"),
   subnetwork: System.get_env("SUBNETWORK"),
   network_icon: System.get_env("NETWORK_ICON"),
   logo: System.get_env("LOGO"),
+  logo_footer: System.get_env("LOGO_FOOTER"),
   has_emission_funds: false
 
 config :block_scout_web,
@@ -49,7 +52,7 @@ config :block_scout_web, BlockScoutWeb.Gettext, locales: ~w(en), default_locale:
 
 config :block_scout_web, BlockScoutWeb.SocialMedia,
   twitter: "PoaNetwork",
-  telegram: "oraclesnetwork",
+  telegram: "poa_network",
   facebook: "PoaNetwork",
   instagram: "PoaNetwork"
 
