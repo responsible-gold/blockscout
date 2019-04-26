@@ -15,6 +15,11 @@ defmodule BlockScoutWeb.LayoutView do
     Keyword.get(application_config(), :logo) || "/images/GCoin_logo.svg"
   end
 
+  def logo_footer do
+    Keyword.get(application_config(), :logo_footer) || Keyword.get(application_config(), :logo) ||
+      "/images/blockscout_logo.svg"
+  end
+
   def subnetwork_title do
     Keyword.get(application_config(), :subnetwork) || "QOS Network"
   end
@@ -76,6 +81,16 @@ defmodule BlockScoutWeb.LayoutView do
     BlockScoutWeb.version()
   end
 
+  def release_link(version) do
+    release_link = Application.get_env(:block_scout_web, :release_link)
+
+    if release_link == "" || release_link == nil do
+      version
+    else
+      html_escape({:safe, "<a href=\"#{release_link}\" class=\"footer-link\" target=\"_blank\">#{version}</a>"})
+    end
+  end
+
   def ignore_version?("unknown"), do: true
   def ignore_version?(_), do: false
 
@@ -85,6 +100,7 @@ defmodule BlockScoutWeb.LayoutView do
     |> Enum.reject(fn %{title: title} ->
       title == subnetwork_title()
     end)
+    |> Enum.sort()
   end
 
   def main_nets do
