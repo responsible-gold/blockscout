@@ -6,7 +6,20 @@ defmodule Explorer.Application do
   use Application
 
   alias Explorer.Admin
-  alias Explorer.Chain.{BlockCountCache, BlockNumberCache, TransactionCountCache}
+
+  alias Explorer.Chain.Cache.{
+    Accounts,
+    BlockCount,
+    BlockNumber,
+    Blocks,
+    NetVersion,
+    TransactionCount,
+    Transactions
+  }
+
+  alias Explorer.Chain.Supply.RSK
+
+  alias Explorer.Market.MarketHistoryCache
   alias Explorer.Repo.PrometheusLogger
 
   @impl Application
@@ -25,40 +38,46 @@ defmodule Explorer.Application do
       Explorer.Repo,
       Supervisor.Spec.worker(SpandexDatadog.ApiServer, [datadog_opts()]),
       Supervisor.child_spec({Task.Supervisor, name: Explorer.MarketTaskSupervisor}, id: Explorer.MarketTaskSupervisor),
+      Supervisor.child_spec({Task.Supervisor, name: Explorer.GenesisDataTaskSupervisor}, id: GenesisDataTaskSupervisor),
       Supervisor.child_spec({Task.Supervisor, name: Explorer.TaskSupervisor}, id: Explorer.TaskSupervisor),
+      Explorer.SmartContract.SolcDownloader,
       {Registry, keys: :duplicate, name: Registry.ChainEvents, id: Registry.ChainEvents},
       {Admin.Recovery, [[], [name: Admin.Recovery]]},
-      {TransactionCountCache, [[], []]}
+      TransactionCount,
+      BlockCount,
+      Blocks,
+      NetVersion,
+      BlockNumber,
+      con_cache_child_spec(MarketHistoryCache.cache_name()),
+      con_cache_child_spec(RSK.cache_name(), ttl_check_interval: :timer.minutes(1), global_ttl: :timer.minutes(30)),
+      Transactions,
+      Accounts
     ]
 
     children = base_children ++ configurable_children()
 
     opts = [strategy: :one_for_one, name: Explorer.Supervisor]
 
-    res = Supervisor.start_link(children, opts)
-
-    BlockNumberCache.setup()
-    BlockCountCache.setup()
-
-    res
+    Supervisor.start_link(children, opts)
   end
 
   defp configurable_children do
     [
       configure(Explorer.ExchangeRates),
+      configure(Explorer.ChainSpec.GenesisData),
       configure(Explorer.KnownTokens),
       configure(Explorer.Market.History.Cataloger),
       configure(Explorer.Counters.AddressesWithBalanceCounter),
+      configure(Explorer.Counters.AddressesCounter),
       configure(Explorer.Counters.AverageBlockTime),
-      configure(Explorer.Validator.MetadataProcessor)
+      configure(Explorer.Validator.MetadataProcessor),
+      configure(Explorer.Staking.EpochCounter)
     ]
     |> List.flatten()
   end
 
   defp should_start?(process) do
-    :explorer
-    |> Application.fetch_env!(process)
-    |> Keyword.fetch!(:enabled)
+    Application.get_env(:explorer, process, [])[:enabled] == true
   end
 
   defp configure(process) do
@@ -77,5 +96,17 @@ defmodule Explorer.Application do
       sync_threshold: System.get_env("SPANDEX_SYNC_THRESHOLD") || 100,
       http: HTTPoison
     ]
+  end
+
+  defp con_cache_child_spec(name, params \\ [ttl_check_interval: false]) do
+    params = Keyword.put(params, :name, name)
+
+    Supervisor.child_spec(
+      {
+        ConCache,
+        params
+      },
+      id: {ConCache, name}
+    )
   end
 end

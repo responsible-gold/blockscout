@@ -5,6 +5,8 @@ $card-horizontal-padding: 30px;
 $card-vertical-padding: 30px;
 $card-background-1: $primary !default;
 $card-background-1-text-color: #fff !default;
+$card-tab-icon-color: #20b760 !default;
+$card-tab-icon-color-active: #fff !default;
 
 .card {
   background-color: $card-background-color;
@@ -12,14 +14,29 @@ $card-background-1-text-color: #fff !default;
   border: none;
   box-shadow: 0 0 30px 0 rgba(202, 199, 226, 0.5);
   margin-bottom: $common-container-margin;
+
+  .block-details-row {
+    flex-direction: row;
+    @include media-breakpoint-down(sm) {
+      flex-direction: column;
+    }
+
+    .block-detail-el {
+      & + .block-detail-el {
+        @include media-breakpoint-down(sm) {
+          margin-top: 6px;
+        }
+      }
+    }
+  }
 }
 
 .card-background-1 {
   background-color: $card-background-1;
   color: $card-background-1-text-color;
 
-  a,
-  a:hover {
+  a:not(.dropdown-item),
+  a:not(.dropdown-item):hover {
     color: $card-background-1-text-color;
   }
 }
@@ -39,6 +56,12 @@ $card-background-1-text-color: #fff !default;
   font-weight: normal;
   line-height: 1.2rem;
   margin-bottom: 2rem;
+
+  &.lg-card-title {
+    @media (max-width: 374px) {
+      font-size: 13px;
+    }
+  }
 
   &.margin-bottom-md {
     margin-bottom: 25px;
@@ -67,7 +90,7 @@ $card-background-1-text-color: #fff !default;
 }
 
 .card-subtitle {
-  color: #aaa;
+  color: #333;
   font-size: 12px;
   font-weight: normal;
   line-height: 1.2;
@@ -132,8 +155,8 @@ $card-background-1-text-color: #fff !default;
 }
 
 .card-chain-blocks {
-  height: auto;
-
+  min-height: 233px;
+  max-height: auto;
   [class*="col-"]:last-child {
     .tile {
       margin-bottom: 0;
@@ -142,7 +165,8 @@ $card-background-1-text-color: #fff !default;
 }
 
 .card-chain-transactions {
-  height: auto;
+  min-height: 664px;
+  max-height: auto;
 
   .tile {
     margin-bottom: 0;
@@ -158,29 +182,38 @@ $card-background-1-text-color: #fff !default;
   justify-content: flex-start;
   overflow: hidden;
 
-  @include media-breakpoint-down(sm) {
+  @include media-breakpoint-down(md) {
     flex-direction: column;
   }
 }
 
 .card-tab {
+  align-items: center;
   background-color: $card-background-color;
   color: #333;
   cursor: pointer;
+  display: flex;
   font-size: 14px;
   font-weight: normal;
   height: 70px;
-  line-height: 70px;
-  padding: 0 30px;
+  padding: 0 25px;
   text-align: center;
+  transition: $transition-cont;
 
   &:hover {
-    text-decoration: underline;
+    background-color: rgba($card-tab-active, .15);
+    color: $card-tab-active;
+    text-decoration: none;
   }
 
-  @include media-breakpoint-down(sm) {
+  @include media-breakpoint-down(md) {
     display: none;
     width: 100%;
+  }
+
+  .fa-check-circle {
+    color: $card-tab-icon-color;
+    margin-left: 6px;
   }
 
   &.active {
@@ -189,9 +222,13 @@ $card-background-1-text-color: #fff !default;
     cursor: default;
     text-decoration: none;
 
-    @include media-breakpoint-down(sm) {
+    .fa-check-circle {
+      color: $card-tab-icon-color-active;
+    }
+
+    @include media-breakpoint-down(md) {
       cursor: pointer;
-      display: block;
+      display: flex;
       order: -1;
 
       &::after {

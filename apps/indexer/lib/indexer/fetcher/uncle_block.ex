@@ -12,6 +12,7 @@ defmodule Indexer.Fetcher.UncleBlock do
   alias Ecto.Changeset
   alias EthereumJSONRPC.Blocks
   alias Explorer.Chain
+  alias Explorer.Chain.Cache.Accounts
   alias Explorer.Chain.Hash
   alias Indexer.{Block, BufferedTask, Tracer}
   alias Indexer.Fetcher.UncleBlock
@@ -71,17 +72,19 @@ defmodule Indexer.Fetcher.UncleBlock do
   @impl BufferedTask
   @decorate trace(name: "fetch", resource: "Indexer.Fetcher.UncleBlock.run/2", service: :indexer, tracer: Tracer)
   def run(entries, %Block.Fetcher{json_rpc_named_arguments: json_rpc_named_arguments} = block_fetcher) do
-    entry_count = Enum.count(entries)
+    unique_entries = Enum.uniq(entries)
+
+    entry_count = Enum.count(unique_entries)
     Logger.metadata(count: entry_count)
 
     Logger.debug("fetching")
 
-    entries
+    unique_entries
     |> Enum.map(&entry_to_params/1)
     |> EthereumJSONRPC.fetch_uncle_blocks(json_rpc_named_arguments)
     |> case do
       {:ok, blocks} ->
-        run_blocks(blocks, block_fetcher, entries)
+        run_blocks(blocks, block_fetcher, unique_entries)
 
       {:error, reason} ->
         Logger.error(
@@ -91,7 +94,7 @@ defmodule Indexer.Fetcher.UncleBlock do
           error_count: entry_count
         )
 
-        {:retry, entries}
+        {:retry, unique_entries}
     end
   end
 
@@ -104,18 +107,18 @@ defmodule Indexer.Fetcher.UncleBlock do
     {nephew_hash_bytes, index}
   end
 
-  defp run_blocks(%Blocks{blocks_params: []}, _, original_entries), do: {:retry, original_entries}
+  def run_blocks(%Blocks{blocks_params: []}, _, original_entries), do: {:retry, original_entries}
 
-  defp run_blocks(
-         %Blocks{
-           blocks_params: blocks_params,
-           transactions_params: transactions_params,
-           block_second_degree_relations_params: block_second_degree_relations_params,
-           errors: errors
-         },
-         block_fetcher,
-         original_entries
-       ) do
+  def run_blocks(
+        %Blocks{
+          blocks_params: blocks_params,
+          transactions_params: transactions_params,
+          block_second_degree_relations_params: block_second_degree_relations_params,
+          errors: errors
+        },
+        block_fetcher,
+        original_entries
+      ) do
     addresses_params = Addresses.extract_addresses(%{blocks: blocks_params, transactions: transactions_params})
 
     case Block.Fetcher.import(block_fetcher, %{
@@ -124,7 +127,8 @@ defmodule Indexer.Fetcher.UncleBlock do
            block_second_degree_relations: %{params: block_second_degree_relations_params},
            transactions: %{params: transactions_params, on_conflict: :nothing}
          }) do
-      {:ok, _} ->
+      {:ok, imported} ->
+        Accounts.drop(imported[:addresses])
         retry(errors)
 
       {:error, {:import = step, [%Changeset{} | _] = changesets}} ->
@@ -235,7 +239,17 @@ defmodule Indexer.Fetcher.UncleBlock do
     Enum.map(errors, &error_to_entry/1)
   end
 
-  defp error_to_entry(%{data: %{hash: hash}}) when is_binary(hash), do: hash
+  defp error_to_entry(%{data: %{hash: hash, index: index}}) when is_binary(hash) do
+    {:ok, %Hash{bytes: nephew_hash_bytes}} = Hash.Full.cast(hash)
+
+    {nephew_hash_bytes, index}
+  end
+
+  defp error_to_entry(%{data: %{nephew_hash: hash, index: index}}) when is_binary(hash) do
+    {:ok, %Hash{bytes: nephew_hash_bytes}} = Hash.Full.cast(hash)
+
+    {nephew_hash_bytes, index}
+  end
 
   defp errors_to_iodata(errors) when is_list(errors) do
     errors_to_iodata(errors, [])
@@ -248,6 +262,11 @@ defmodule Indexer.Fetcher.UncleBlock do
   end
 
   defp error_to_iodata(%{code: code, message: message, data: %{hash: hash}})
+       when is_integer(code) and is_binary(message) and is_binary(hash) do
+    [hash, ": (", to_string(code), ") ", message, ?\n]
+  end
+
+  defp error_to_iodata(%{code: code, message: message, data: %{nephew_hash: hash}})
        when is_integer(code) and is_binary(message) and is_binary(hash) do
     [hash, ": (", to_string(code), ") ", message, ?\n]
   end

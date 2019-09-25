@@ -47,30 +47,6 @@ defmodule BlockScoutWeb.TransactionViewTest do
     end
   end
 
-  describe "erc721_token_transfer/2" do
-    test "finds token transfer" do
-      from_address_hash = "0x7a30272c902563b712245696f0a81c5a0e45ddc8"
-      to_address_hash = "0xb544cead8b660aae9f2e37450f7be2ffbc501793"
-      from_address = insert(:address, hash: from_address_hash)
-      to_address = insert(:address, hash: to_address_hash)
-      block = insert(:block)
-
-      transaction =
-        insert(:transaction,
-          input:
-            "0x23b872dd0000000000000000000000007a30272c902563b712245696f0a81c5a0e45ddc8000000000000000000000000b544cead8b660aae9f2e37450f7be2ffbc5017930000000000000000000000000000000000000000000000000000000000000002",
-          value: Decimal.new(0),
-          created_contract_address_hash: nil
-        )
-        |> with_block(block, status: :ok)
-
-      token_transfer =
-        insert(:token_transfer, from_address: from_address, to_address: to_address, transaction: transaction)
-
-      assert TransactionView.erc721_token_transfer(transaction, [token_transfer]) == token_transfer
-    end
-  end
-
   describe "processing_time_duration/2" do
     test "returns :pending if the transaction has no block" do
       transaction = build(:transaction, block: nil)
@@ -160,7 +136,7 @@ defmodule BlockScoutWeb.TransactionViewTest do
           gas_used: nil
         )
 
-      expected_value = "Max of 0.009 POA"
+      expected_value = "Max of 0.009 Ether"
       assert expected_value == TransactionView.formatted_fee(transaction, denomination: :ether)
     end
 
@@ -168,11 +144,8 @@ defmodule BlockScoutWeb.TransactionViewTest do
       {:ok, gas_price} = Wei.cast(3_000_000_000)
       transaction = build(:transaction, gas_price: gas_price, gas_used: Decimal.from_float(1_034_234.0))
 
-      expected_value = "0.003102702 POA"
+      expected_value = "0.003102702 Ether"
       assert expected_value == TransactionView.formatted_fee(transaction, denomination: :ether)
-    end
-
-    test "with fee but no available exchange_rate" do
     end
   end
 
@@ -275,6 +248,36 @@ defmodule BlockScoutWeb.TransactionViewTest do
       assert TransactionView.current_tab_name(token_transfers_path) == "Token Transfers"
       assert TransactionView.current_tab_name(internal_transactions_path) == "Internal Transactions"
       assert TransactionView.current_tab_name(logs_path) == "Logs"
+    end
+  end
+
+  describe "aggregate_token_transfers/1" do
+    test "aggregates token transfers" do
+      transaction =
+        :transaction
+        |> insert()
+        |> with_block()
+
+      token_transfer = insert(:token_transfer, transaction: transaction, amount: Decimal.new(1))
+
+      result = TransactionView.aggregate_token_transfers([token_transfer, token_transfer, token_transfer])
+
+      assert Enum.count(result) == 1
+      assert List.first(result).amount == Decimal.new(3)
+    end
+
+    test "does not aggregate NFT tokens" do
+      transaction =
+        :transaction
+        |> insert()
+        |> with_block()
+
+      token_transfer = insert(:token_transfer, transaction: transaction, amount: nil)
+
+      result = TransactionView.aggregate_token_transfers([token_transfer, token_transfer, token_transfer])
+
+      assert Enum.count(result) == 3
+      assert List.first(result).amount == nil
     end
   end
 end

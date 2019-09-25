@@ -20,12 +20,14 @@ defmodule Indexer.Block.Realtime.Fetcher do
       async_import_tokens: 1,
       async_import_token_balances: 1,
       async_import_uncles: 1,
-      fetch_and_import_range: 2
+      fetch_and_import_range: 2,
+      async_import_staking_pools: 0
     ]
 
   alias Ecto.Changeset
   alias EthereumJSONRPC.{FetchedBalances, Subscription}
   alias Explorer.Chain
+  alias Explorer.Chain.Cache.Accounts
   alias Explorer.Counters.AverageBlockTime
   alias Indexer.{Block, Tracer}
   alias Indexer.Block.Realtime.TaskSupervisor
@@ -139,7 +141,7 @@ defmodule Indexer.Block.Realtime.Fetcher do
         %__MODULE__{state | subscription: subscription}
 
       {:error, reason} ->
-        Logger.debug(fn -> ["Could not connect to websocket: ", reason, ". Continuing with polling."] end)
+        Logger.debug(fn -> ["Could not connect to websocket: #{inspect(reason)}. Continuing with polling."] end)
         state
     end
   end
@@ -196,8 +198,16 @@ defmodule Indexer.Block.Realtime.Fetcher do
         json_rpc_named_arguments
       )
 
+      Accounts.drop(imported[:addresses])
+
       ok
     end
+  end
+
+  def import(_, _) do
+    Logger.warn("Empty parameters were provided for realtime fetcher")
+
+    {:ok, []}
   end
 
   defp start_fetch_and_import(number, block_fetcher, previous_number, max_number_seen) do
@@ -350,6 +360,7 @@ defmodule Indexer.Block.Realtime.Fetcher do
     async_import_token_balances(imported)
     async_import_uncles(imported)
     async_import_replaced_transactions(imported)
+    async_import_staking_pools()
   end
 
   defp balances(
