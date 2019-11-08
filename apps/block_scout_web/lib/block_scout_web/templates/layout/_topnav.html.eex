@@ -77,50 +77,10 @@
                   ) %>
             </div>
           </li>
-          <li class="nav-item">
-            <%= link to: address_path(@conn, :index), class: "nav-link topnav-nav-link #{tab_status("accounts", @conn.request_path)}" do %>
-              <span class="nav-link-icon">
-                <%= render BlockScoutWeb.IconsView, "_accounts_icon.html" %>
-              </span>
-              <%= gettext("Accounts") %>
-            <% end %>
-          </li>
+
         <% end %>
-        <%= if Application.get_env(:block_scout_web, BlockScoutWeb.ApiRouter)[:reading_enabled] || Application.get_env(:block_scout_web, :api_url) do %>
-          <li class="nav-item dropdown">
-            <a href="#" role="button" id="navbarAPIsDropdown" class="nav-link topnav-nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span class="nav-link-icon">
-                <%= render BlockScoutWeb.IconsView, "_api_icon.html" %>
-              </span>
-              <%= gettext("APIs") %>
-            </a>
-            <div class="dropdown-menu" id="checkIfSmall2" aria-labeledby="navbarTransactionsDropdown">
-              <%= link(
-                    gettext("GraphQL"),
-                    class: "dropdown-item #{tab_status("graphiql", @conn.request_path)}",
-                    to: api_url() <> "/graphiql"
-                  ) %>
-              <%= link(
-                    gettext("RPC"),
-                    class: "dropdown-item #{tab_status("api_docs", @conn.request_path)}",
-                    to: api_url() <> api_docs_path(@conn, :index)
-                  ) %>
-              <%= link(
-                    gettext("Eth RPC"),
-                    class: "dropdown-item #{tab_status("eth_rpc_api_docs", @conn.request_path)}",
-                    to: api_url() <> api_docs_path(@conn, :eth_rpc)
-                  ) %>
-            </div>
-          </li>
-        <% end %>
-        <li class="nav-item dropdown">
-          <a class="nav-link last-child topnav-nav-link active-icon <%= if dropdown_nets() != [], do: "dropdown-toggle js-show-network-selector" %>" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <span class="nav-link-icon">
-              <%= render BlockScoutWeb.IconsView, "_active_icon.html" %>
-            </span>
-            <%= subnetwork_title() %>
-          </a>
-        </li>
+        
+        
       </ul>
       <!-- Dark mode changer was there -->
       <button class="dark-mode-changer" id="dark-mode-changer">
